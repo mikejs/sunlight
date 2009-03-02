@@ -22,10 +22,16 @@ describe Sunlight::Filing do
   describe "#all_where" do
     
     it "should return array when valid parameters are passed in" do
-      Sunlight::Filing.should_receive(:get_json_data).and_return({"response"=>{"filings"=>[{"filing"=>{"client_name"=>"ABC", "lobbyists"=>[], "issues"=>[]}}]}})
+      Sunlight::Filing.should_receive(:get_json_data).and_return({"response"=>{"filings"=>[{"filing"=>{"client_name"=>"ABC", "lobbyists" => [{"lobbyist" => {"firstname" => "Bob"}}], "issues" => [{"issue" => {"specific_issue" => "Issue"}}]}}]}})
       
-      filings = Sunlight::Filing.all_where(:client_name => "ABC")
+      filings = Sunlight::Filing.all_where(:client_name => "ABC", :year => '2007')
       filings.first.client_name.should eql('ABC')
+    
+      filings.first.lobbyists.first.should be_an_instance_of(Lobbyist)
+      filings.first.lobbyists.first.firstname.should eql("Bob")
+      
+      filings.first.issues.first.should be_an_instance_of(Issue)
+      filings.first.issues.first.specific_issue.should eql("Issue")
     end
         
     it "should return nil on bad data" do
@@ -40,6 +46,45 @@ describe Sunlight::Filing do
       filings.should be(nil)
     end
     
+    it "should return nil on empty search" do
+      Sunlight::Filing.should_receive(:get_json_data).and_return({"response" => {"filings" => []}})
+      
+      filings = Sunlight::Filing.all_where(:client_name => "abc")
+      filings.should be(nil)
+    end
+    
+  end
+  
+  describe "#get" do
+
+    it "should return nil if no match is found" do
+      Sunlight::Filing.should_receive(:get_json_data).and_return(nil)
+      
+      filing = Sunlight::Filing.get("bad ID")
+      filing.should be(nil)
+    end
+    
+    it "should return nil on empty reply" do
+      Sunlight::Filing.should_receive(:get_json_data).and_return({"response" => {}})
+      
+      filing = Sunlight::Filing.get("bad ID")
+      filing.should be(nil)
+    end
+
+    it "should return one record when id is passed in" do
+      Sunlight::Filing.should_receive(:get_json_data).and_return({"response" => {"filing"=> {"client_name" => "ABC", "lobbyists" => [{"lobbyist" => {"firstname" => "Bob"}}], "issues" => [{"issue" => {"specific_issue" => "Issue"}}]}}})
+
+      filing = Filing.get("real ID")
+      filing.should be_an_instance_of(Filing)
+      filing.client_name.should eql('ABC')
+      
+      filing.lobbyists.first.should be_an_instance_of(Lobbyist)
+      filing.lobbyists.first.firstname.should eql("Bob")
+      
+      filing.issues.first.should be_an_instance_of(Issue)
+      filing.issues.first.specific_issue.should eql("Issue")
+    end
+
   end
 
 end
@@ -103,7 +148,7 @@ describe Sunlight::Lobbyist do
     it "should return nil when probable match passed in but underneath supplied threshold" do
       Sunlight::Lobbyist.should_receive(:get_json_data).and_return({"response"=>{"results"=>[{"result"=>{"score"=>"0.91", "lobbyist"=>{"firstname"=>"Edward"}}}]}})
     
-      lobbyists = Sunlight::Lobbyist.search_by_name("Teddy Kennedey", :threshold => 0.92)
+      lobbyists = Sunlight::Lobbyist.search_by_name("Teddy Kennedey", :threshold => 0.92, :year => "2005")
       lobbyists.should be(nil)
     end
     
@@ -120,7 +165,6 @@ describe Sunlight::Lobbyist do
       lobbyists = Sunlight::Lobbyist.search_by_name("923jkfkj elkji","lkjd")
       lobbyists.should be(nil)      
     end    
-    
     
   end
 
